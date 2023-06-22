@@ -2,8 +2,7 @@ import * as faceapi from 'face-api.js';
 import React from 'react';
 import { collection, addDoc, Timestamp} from "firebase/firestore";
 import { db, auth } from '../firebase';
-import { signOut } from "firebase/auth";
-
+import { MAIN_COLLECTION, settings } from '../Settings'
 
 function EmotionDetector({ signOut }) {
   const user = auth.currentUser;
@@ -93,7 +92,6 @@ function EmotionDetector({ signOut }) {
               value: value
             };
             addDataToFirestore(data)
-            // db.collection("TestCollection").addDoc(data)
 
             console.log('--- detection data =', data)
             
@@ -114,7 +112,7 @@ function EmotionDetector({ signOut }) {
             faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
             faceapi.draw.drawFaceExpressions(canvasRef.current, resizedDetections);
           }
-        }, 1000);
+        }, settings.intervalTime);
 
         setIntervalId(interval);
 
@@ -125,7 +123,8 @@ function EmotionDetector({ signOut }) {
   const addDataToFirestore = async (data) => {
     try {
       // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
-      const docRef = await addDoc(collection(db, 'FaceDetectionTest'), data);
+      console.log(MAIN_COLLECTION)
+      const docRef = await addDoc(collection(db, MAIN_COLLECTION), data);
   
       console.log('Document ID:', docRef.id);
     } catch (error) {
@@ -147,7 +146,7 @@ function EmotionDetector({ signOut }) {
   return (
     <div>
             <div style={{ textAlign: 'center', padding: '10px' }}>
-              <h2>Wellcome { user.displayName }</h2>
+              <h2>Wellcome {user != null ? user.displayName : null }</h2>
             </div>
 
       <div style={{ textAlign: 'center', padding: '10px' }}>
