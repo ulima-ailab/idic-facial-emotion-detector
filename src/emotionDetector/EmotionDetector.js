@@ -1,10 +1,12 @@
 import * as faceapi from 'face-api.js';
 import React from 'react';
 import { collection, addDoc, Timestamp} from "firebase/firestore";
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
+import { signOut } from "firebase/auth";
 
 
-function EmotionDetector() {
+function EmotionDetector({ signOut }) {
+  const user = auth.currentUser;
 
   const [modelsLoaded, setModelsLoaded] = React.useState(false);
   const [captureVideo, setCaptureVideo] = React.useState(false);
@@ -20,10 +22,6 @@ function EmotionDetector() {
       const uri = process.env.PUBLIC_URL + '/models';
 
       Promise.all([
-        // faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-        // faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        // faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-        // faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
         faceapi.nets.ssdMobilenetv1.loadFromUri(uri),
         faceapi.nets.ageGenderNet.loadFromUri(uri),
         faceapi.nets.faceExpressionNet.loadFromUri(uri),
@@ -89,8 +87,8 @@ function EmotionDetector() {
 
             const data = {
               emotion: key,
-              id_user: "adminUser",
-              source: "faceDetection",
+              id_user: user.uid,
+              source: "face",
               timestamp: Timestamp.fromDate(date),
               value: value
             };
@@ -145,8 +143,13 @@ function EmotionDetector() {
     setCaptureVideo(false);
   }
 
+
   return (
     <div>
+            <div style={{ textAlign: 'center', padding: '10px' }}>
+              <h2>Wellcome { user.displayName }</h2>
+            </div>
+
       <div style={{ textAlign: 'center', padding: '10px' }}>
         {
           captureVideo && modelsLoaded ?
@@ -158,6 +161,9 @@ function EmotionDetector() {
               Open Webcam
             </button>
         }
+            <button onClick={signOut} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
+              SingOut
+            </button>
       </div>
       {
         captureVideo ?

@@ -9,8 +9,8 @@ import EmotionDetector from './emotionDetector/EmotionDetector';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    {/* <Login /> */}
-    <EmotionDetector/>
+    <Login />
+    {/* <EmotionDetector/> */}
     
   </React.StrictMode>
 );
