@@ -1,5 +1,8 @@
 import * as faceapi from 'face-api.js';
 import React from 'react';
+import { collection, addDoc, Timestamp} from "firebase/firestore";
+import { db } from '../firebase';
+
 
 function EmotionDetector() {
 
@@ -81,13 +84,27 @@ function EmotionDetector() {
 
             // console.log('--- detections[0].expressions =', detections[0].expressions)
           const predominant =  Object.entries(detections[0].expressions).reduce((acc, [key, value]) => {
+            console.log(key, " ----", value)
+            const date = new Date();
+
+            const data = {
+              emotion: key,
+              id_user: "adminUser",
+              source: "faceDetection",
+              timestamp: Timestamp.fromDate(date),
+              value: value
+            };
+            addDataToFirestore(data)
+            // db.collection("TestCollection").addDoc(data)
+
+            console.log('--- detection data =', data)
+            
             if (value > acc.value) {
             return { key, value };
             }
             return acc;
           }, { key: null, value: -Infinity }).key
           
-          console.log('--- detections =', detections)
 
           console.log('--- predominant =', predominant)
 
@@ -99,7 +116,7 @@ function EmotionDetector() {
             faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
             faceapi.draw.drawFaceExpressions(canvasRef.current, resizedDetections);
           }
-        }, 100);
+        }, 1000);
 
         setIntervalId(interval);
 
@@ -107,6 +124,16 @@ function EmotionDetector() {
     }
   };
   
+  const addDataToFirestore = async (data) => {
+    try {
+      // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
+      const docRef = await addDoc(collection(db, 'FaceDetectionTest'), data);
+  
+      console.log('Document ID:', docRef.id);
+    } catch (error) {
+      console.error('Error adding document:', error);
+    }
+  };
 
   const closeWebcam = () => {
     if (intervalId) {
