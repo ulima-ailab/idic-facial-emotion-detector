@@ -4,11 +4,14 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import Login from './Login';
+import EmotionDetector from './emotionDetector/EmotionDetector';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <Login />
+    {/* <Login /> */}
+    <EmotionDetector/>
+    
   </React.StrictMode>
 );
 
