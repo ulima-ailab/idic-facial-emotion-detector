@@ -81,44 +81,71 @@ function EmotionDetector({ signOut }) {
 
             // console.log('--- detections[0].expressions =', detections[0].expressions)
           const predominant =  Object.entries(detections[0].expressions).reduce((acc, [key, value]) => {
-            console.log(key, " ----", value)
-            const date = new Date();
-
-            const data = {
-              emotion: key,
-              id_user: user.uid,
-              source: "face",
-              timestamp: Timestamp.fromDate(date),
-              value: value
-            };
-            addDataToFirestore(data)
-
-            console.log('--- detection data =', data)
-            
             if (value > acc.value) {
-            return { key, value };
+              return { key, value };
             }
             return acc;
           }, { key: null, value: -Infinity }).key
-          
 
           console.log('--- predominant =', predominant)
+          console.log("--- number of people: ", detections.length);
 
           const resizedDetections = faceapi.resizeResults(detections, displaySize);
   
           if (canvasRef && canvasRef.current && canvasRef.current.getContext) {
             canvasRef.current.getContext('2d').clearRect(0, 0, videoWidth, videoHeight);
-            faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
+            //faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
             faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
             faceapi.draw.drawFaceExpressions(canvasRef.current, resizedDetections);
+            // Dibujar solo el box mas grande
+            const biggestDetection = biggestBox(resizedDetections)
+            const box = biggestDetection.detection.box
+            new faceapi.draw.DrawBox(box, {
+                label: predominant
+            }).draw(canvasRef.current) 
           }
         }, settings.intervalTime);
 
         setIntervalId(interval);
-
       });
     }
   };
+
+  function getBoxSize(detection) {
+      const box = detection.detection.box
+      var width = box.width
+      var height = box.height
+      return width * height
+  }
+
+  function biggestBox(resizedDetections) {
+      var biggestDetection = resizedDetections[0];
+      var biggestBox = 0;
+      resizedDetections.forEach(detection => {
+          var boxSize = getBoxSize(detection)
+          if( boxSize > biggestBox ) {
+              biggestDetection = detection
+              biggestBox = boxSize
+          }
+      })
+      console.log("Emotions: ",  biggestDetection.expressions)
+            
+      for (const [key, value] of Object.entries(biggestDetection.expressions)) {
+        const date = new Date();
+        const data = {
+          emotion: key,
+          id_user: user.uid,
+          source: "face",
+          timestamp: Timestamp.fromDate(date),
+          value: value
+        };
+        addDataToFirestore(data)
+
+        console.log('--- detection data =', data)
+      }
+
+      return biggestDetection;
+  }
   
   const addDataToFirestore = async (data) => {
     try {
