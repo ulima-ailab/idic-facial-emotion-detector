@@ -3,7 +3,7 @@ import React from 'react';
 import { collection, addDoc, Timestamp} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '../firebase';
-import { MAIN_COLLECTION, settings } from '../Settings'
+import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings } from '../Settings'
 
 function EmotionDetector({ signOut, currentUser }) {
   const [modelsLoaded, setModelsLoaded] = React.useState(false);
@@ -106,7 +106,7 @@ function EmotionDetector({ signOut, currentUser }) {
 
           console.log('--- predominant =', predominant)
           console.log("--- number of people: ", detections.length);
-
+          sendContextToFirebase(detections.length)
           const resizedDetections = faceapi.resizeResults(detections, displaySize);
   
           if (canvasRef && canvasRef.current && canvasRef.current.getContext) {
@@ -148,29 +148,46 @@ function EmotionDetector({ signOut, currentUser }) {
       console.log("Emotions: ",  biggestDetection.expressions)
             
       for (const [key, value] of Object.entries(biggestDetection.expressions)) {
-        const date = new Date();
-        const data = {
-          emotion: key,
-          id_user: user.uid,
-          source: "face",
-          timestamp: Timestamp.fromDate(date),
-          value: value
-        };
-        addDataToFirestore(data)
 
-        console.log('--- detection data =', data)
+        sendEmotionToFirebase(key, value)
+
       }
 
       return biggestDetection;
   }
   
-  const addDataToFirestore = async (data) => {
+  const sendEmotionToFirebase = async (emotion, value) => {
     try {
+      const date = new Date();
+      const data = {
+        emotion: emotion,
+        id_user: user.uid,
+        source: "face",
+        timestamp: Timestamp.fromDate(date),
+        value: value
+      };
       // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
-      console.log(MAIN_COLLECTION)
-      const docRef = await addDoc(collection(db, MAIN_COLLECTION), data);
+      const docRef = await addDoc(collection(db, EMOTION_COLLECTION), data);
   
-      console.log('Document ID:', docRef.id);
+      console.log('Emotion Document ID:', docRef.id);
+    } catch (error) {
+      console.error('Error adding document:', error);
+    }
+  };
+
+  const sendContextToFirebase = async (peopleNumber) => {
+    try {
+      const date = new Date();
+      const data = {
+        id_user: user.uid,
+        timestamp: Timestamp.fromDate(date),
+        interaction_others: peopleNumber >= 2 ? 1 : 0,
+        attention_level: -1
+      };
+      // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
+      const docRef = await addDoc(collection(db, CONTEXT_WEB_COLLECTION), data);
+  
+      console.log('Context Document ID:', docRef.id);
     } catch (error) {
       console.error('Error adding document:', error);
     }
