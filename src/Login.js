@@ -5,7 +5,7 @@ import { signInWithPopup, signOut } from "firebase/auth";
 import EmotionDetector from "./emotionDetector/EmotionDetector";
 
 function Login() {
-    const [isAuthenticated, updateAuth] = useState("")
+    const [userAuthenticated, updateAuth] = useState(null)
 
     const handleSignIn =()=> {
         signInWithPopup(auth, provider)
@@ -50,8 +50,8 @@ function Login() {
     return (
         <div>
     
-            {isAuthenticated 
-                ? <EmotionDetector signOut={handleSignOut}/> 
+            {userAuthenticated
+                ? <EmotionDetector signOut={handleSignOut} currentUser={userAuthenticated}/> 
                 : SignInButton                    
             }
         </div>

@@ -1,15 +1,15 @@
 import * as faceapi from 'face-api.js';
 import React from 'react';
 import { collection, addDoc, Timestamp} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '../firebase';
 import { MAIN_COLLECTION, settings } from '../Settings'
 
-function EmotionDetector({ signOut }) {
-  const user = auth.currentUser;
-
+function EmotionDetector({ signOut, currentUser }) {
   const [modelsLoaded, setModelsLoaded] = React.useState(false);
   const [captureVideo, setCaptureVideo] = React.useState(false);
   const [intervalId, setIntervalId] = React.useState(null);
+  const [user, setUser] = React.useState(null);
 
   const videoRef = React.useRef();
   const videoHeight = 480;
@@ -17,6 +17,22 @@ function EmotionDetector({ signOut }) {
   const canvasRef = React.useRef();
 
   React.useEffect(() => {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in, see docs for a list of available properties
+        // https://firebase.google.com/docs/reference/js/firebase.User
+        const uid = user.uid;
+        // ...
+        console.log("uid", uid)
+        setUser(user)
+      } else {
+        // User is signed out
+        // ...
+        console.log("user is logged out")
+        setUser(null)
+      }
+    });
+
     const loadModels = async () => {
       const uri = process.env.PUBLIC_URL + '/models';
 
@@ -32,6 +48,7 @@ function EmotionDetector({ signOut }) {
       ]).then(setModelsLoaded(true));
     }
     loadModels();
+    // setUser(currentUser);
   }, []);
 
   const startVideo = () => {
@@ -165,46 +182,54 @@ function EmotionDetector({ signOut }) {
       setIntervalId(null);
     }
     videoRef.current.pause();
-    videoRef.current.srcObject.getTracks()[0].stop();
+    videoRef.current.srcObject = null;
     setCaptureVideo(false);
   }
 
 
   return (
     <div>
-            <div style={{ textAlign: 'center', padding: '10px' }}>
-              <h2>Wellcome {user != null ? user.displayName : null }</h2>
-            </div>
-
-      <div style={{ textAlign: 'center', padding: '10px' }}>
-        {
-          captureVideo && modelsLoaded ?
-            <button onClick={closeWebcam} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
-              Close Webcam
-            </button>
-            :
-            <button onClick={startVideo} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
-              Open Webcam
-            </button>
-        }
-            <button onClick={signOut} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
-              SingOut
-            </button>
-      </div>
       {
-        captureVideo ?
-          modelsLoaded ?
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
-                <video ref={videoRef} height={videoHeight} width={videoWidth} onPlay={handleVideoOnPlay} style={{ borderRadius: '10px' }} />
-                <canvas ref={canvasRef} style={{ position: 'absolute' }} />
-              </div>
-            </div>
-            :
-            <div>loading...</div>
-          :
-          <>
-          </>
+        user ?
+        <div>
+          <div style={{ textAlign: 'center', padding: '10px' }}>
+                <h2>Wellcome {user.displayName }</h2>
+                </div>
+
+          <div style={{ textAlign: 'center', padding: '10px' }}>
+            {
+              captureVideo && modelsLoaded ?
+                <button onClick={closeWebcam} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
+                  Close Webcam
+                </button>
+                :
+                <button onClick={startVideo} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
+                  Open Webcam
+                </button>
+            }
+                <button onClick={signOut} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
+                  SingOut
+                </button>
+          </div>
+          {
+            captureVideo ?
+              modelsLoaded ?
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
+                    <video ref={videoRef} height={videoHeight} width={videoWidth} onPlay={handleVideoOnPlay} style={{ borderRadius: '10px' }} />
+                    <canvas ref={canvasRef} style={{ position: 'absolute' }} />
+                  </div>
+                </div>
+                :
+                <div>loading...</div>
+              :
+              <>
+              </>
+          }
+      </div>:
+        <div style={{ textAlign: 'center', padding: '10px' }}>
+          <h2>Loading ...</h2>
+        </div>
       }
     </div>
   );
