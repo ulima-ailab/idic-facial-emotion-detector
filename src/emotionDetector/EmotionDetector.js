@@ -203,6 +203,11 @@ function EmotionDetector({ signOut, currentUser }) {
     setCaptureVideo(false);
   }
 
+  const localSignOut = () => {
+    closeWebcam()
+    signOut()
+  }
+
 
   return (
     <div>
@@ -210,7 +215,7 @@ function EmotionDetector({ signOut, currentUser }) {
         user ?
         <div>
           <div style={{ textAlign: 'center', padding: '10px' }}>
-                <h2>Wellcome {user.displayName }</h2>
+                <h2>Welcome {user.displayName }</h2>
                 </div>
 
           <div style={{ textAlign: 'center', padding: '10px' }}>
@@ -224,8 +229,9 @@ function EmotionDetector({ signOut, currentUser }) {
                   Open Webcam
                 </button>
             }
-                <button onClick={signOut} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
-                  SingOut
+            &nbsp;&nbsp;&nbsp;
+                <button onClick={localSignOut} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '15px', fontSize: '25px', border: 'none', borderRadius: '10px' }}>
+                  Sign Out
                 </button>
           </div>
           {
