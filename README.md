@@ -36,6 +36,13 @@ List any software or tools that need to be installed before running the project.
 - Node.js (v14 or higher)
 - npm (v6 or higher)
 ```
+```
+- Google Chrome (Version 93)
+- Mozilla Firefox (Version 92)
+- Microsoft Edge (Version 93)
+- Safari (Version 15)
+- Opera (Version 78)
+```
 
 ### Installation
 
@@ -139,9 +146,6 @@ Explain the organization of your project's directories and key files.
 - **web-vitals** (Version: ^2.1.4)
   - *Description*: Web Vitals is used for measuring the performance of your web application.
 
-
-
-Replace the placeholders (e.g., `Project Name`, `Brief project description goes here`, etc.) with your specific project information. This README template should serve as a starting point to document your React.js project effectively.
 
 # Creación de Reconocimiento Facial en Tiempo Real con JavaScript
 Hacemos una aplicación de reconocimiento facial usando la librería [face-api](https://github.com/justadudewhohacks/face-api.js/)
