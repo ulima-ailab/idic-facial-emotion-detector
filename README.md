@@ -2,8 +2,6 @@
 
 # idic-facial-emotion-detector
 
-Brief project description goes here.
-
 ## Table of Contents
 
 - [Project Overview](#project-overview)
