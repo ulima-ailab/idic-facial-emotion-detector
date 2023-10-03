@@ -50,7 +50,7 @@ git clone https://github.com/ulima-ailab/idic-facial-emotion-detector
 2. Navigate to the project directory:
 
 ```bash
-cd your-project
+cd idic-facial-emotion-detector
 ```
 
 3. Install project dependencies:
