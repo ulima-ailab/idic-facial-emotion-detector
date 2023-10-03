@@ -4,9 +4,9 @@ import { collection, addDoc, Timestamp} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '../firebase';
 import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings } from '../Settings'
-import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
-// import { FaceLandmarker, FilesetResolver, DrawingUtils } from '@mediapipe/tasks-vision';
-const { FaceLandmarker, FilesetResolver, DrawingUtils } = vision
+// import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+// const { FaceLandmarker, FilesetResolver} = vision
 
 
 function EmotionDetector({ signOut, currentUser }) {
