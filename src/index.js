@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import Login from './Login';
+import Login from './Views/Login';
 import EmotionDetector from './emotionDetector/EmotionDetector';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

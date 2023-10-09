@@ -1,4 +1,4 @@
-import {auth, provider} from "./firebase"
+import {auth, provider} from "../firebase"
 import { useEffect, useState } from 'react';
 import { signInWithPopup, signOut } from "firebase/auth";
 
