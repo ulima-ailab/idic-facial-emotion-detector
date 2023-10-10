@@ -2,7 +2,7 @@ import {auth, provider} from "../firebase"
 import { useEffect, useState } from 'react';
 import { signInWithPopup, signOut } from "firebase/auth";
 
-import EmotionDetector from "./emotionDetector/EmotionDetector";
+import EmotionDetector from "../emotionDetector/EmotionDetector";
 
 function Login() {
     const [userAuthenticated, updateAuth] = useState(null)

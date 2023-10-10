@@ -2,16 +2,15 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import SimpleLogin from './views/SimpleLogin';
 import reportWebVitals from './reportWebVitals';
-import Login from './Views/Login';
-import EmotionDetector from './emotionDetector/EmotionDetector';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <Login />
+    {/* <Login /> */}
     {/* <EmotionDetector/> */}
-    
+    <SimpleLogin/>
   </React.StrictMode>
 );
 

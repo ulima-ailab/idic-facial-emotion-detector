@@ -2,11 +2,12 @@ import * as faceapi from 'face-api.js';
 import React from 'react';
 import { collection, addDoc, Timestamp} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { db, auth } from '../firebase';
-import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings } from '../Settings'
+import { db, auth } from '../../firebase';
+import AuthSingleton from '../../services/AuthSingleton'; 
+
+import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings } from '../../Settings'
 // import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-// const { FaceLandmarker, FilesetResolver} = vision
 
 
 function EmotionDetector({ signOut, currentUser }) {
@@ -28,22 +29,11 @@ function EmotionDetector({ signOut, currentUser }) {
   let score = -1;
   
   React.useEffect(() => {
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // User is signed in, see docs for a list of available properties
-        // https://firebase.google.com/docs/reference/js/firebase.User
-        const uid = user.uid;
-        // ...
-        console.log("uid", uid)
-        setUser(user)
-      } else {
-        // User is signed out
-        // ...
-        console.log("user is logged out")
-        setUser(null)
-      }
-    });
-
+    console.log("EmotionDetector AuthSingleton.isAuthenticated: " + AuthSingleton.isAuthenticated)
+    if (AuthSingleton.isAuthenticated) {
+      const user = AuthSingleton.getUser();
+      setUser(user)
+    } 
     const loadModels = async () => {
       const uri = process.env.PUBLIC_URL + '/models';
 
@@ -337,14 +327,13 @@ function EmotionDetector({ signOut, currentUser }) {
     signOut()
   }
 
-
   return (
     <div>
       {
         user ?
         <div>
           <div style={{ textAlign: 'center', padding: '10px' }}>
-                <h2>Welcome {user.displayName }</h2>
+                <h2>Welcome {user.name }</h2>
                 </div>
 
           <div style={{ textAlign: 'center', padding: '10px' }}>
