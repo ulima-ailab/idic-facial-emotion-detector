@@ -1,6 +1,6 @@
 import * as faceapi from 'face-api.js';
 import React from 'react';
-import { collection, addDoc, Timestamp} from "firebase/firestore";
+import { collection, addDoc, serverTimestamp} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '../../firebase';
 import AuthSingleton from '../../services/AuthSingleton'; 
@@ -110,11 +110,11 @@ function EmotionDetector({ signOut, currentUser }) {
         const interval = setInterval(async () => {
         
           await faceLandmarker.setOptions({ runningMode: runningMode });
-        let nowInMs = Date.now();
+          let nowInMs = Date.now();
 
-        const results = faceLandmarker.detectForVideo(video, nowInMs);
-        const face = results.faceLandmarks;
-        console.log("face.length SCORE", face.length);
+          const results = faceLandmarker.detectForVideo(video, nowInMs);
+          const face = results.faceLandmarks;
+          console.log("face.length SCORE", face.length);
           
           const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
             .withFaceLandmarks()
@@ -198,12 +198,11 @@ function EmotionDetector({ signOut, currentUser }) {
   
   const sendEmotionToFirebase = async (emotion, value) => {
     try {
-      const date = new Date();
       const data = {
         emotion: emotion,
         id_user: user.uid,
         source: "face",
-        timestamp: Timestamp.fromDate(date),
+        timestamp: serverTimestamp(),
         value: value
       };
       // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
@@ -217,11 +216,10 @@ function EmotionDetector({ signOut, currentUser }) {
 
   const sendContextToFirebase = async (peopleNumber, attentionLevel) => {
     try {
-      const date = new Date();
       const data = {
         id_user: user.id,
-        timestamp: Timestamp.fromDate(date),
-        interaction_others: peopleNumber >= 2 ? 1 : 0,
+        timestamp: serverTimestamp(),
+        //interaction_others: peopleNumber >= 2 ? 1 : 0,
         attention_level: attentionLevel
       };
       // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
