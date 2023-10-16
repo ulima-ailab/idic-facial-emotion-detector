@@ -1,6 +1,6 @@
 import * as faceapi from 'face-api.js';
 import React from 'react';
-import { collection, addDoc, Timestamp} from "firebase/firestore";
+import { collection, addDoc, serverTimestamp} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '../firebase';
 import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings } from '../Settings'
@@ -208,12 +208,11 @@ function EmotionDetector({ signOut, currentUser }) {
   
   const sendEmotionToFirebase = async (emotion, value) => {
     try {
-      const date = new Date();
       const data = {
         emotion: emotion,
         id_user: user.uid,
         source: "face",
-        timestamp: Timestamp.fromDate(date),
+        timestamp: serverTimestamp(),
         value: value
       };
       // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
@@ -227,10 +226,9 @@ function EmotionDetector({ signOut, currentUser }) {
 
   const sendContextToFirebase = async (peopleNumber, attentionLevel) => {
     try {
-      const date = new Date();
       const data = {
         id_user: user.uid,
-        timestamp: Timestamp.fromDate(date),
+        timestamp: serverTimestamp(),
         interaction_others: peopleNumber >= 2 ? 1 : 0,
         attention_level: attentionLevel
       };
