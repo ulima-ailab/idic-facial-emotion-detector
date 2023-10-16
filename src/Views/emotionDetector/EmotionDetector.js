@@ -5,7 +5,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '../../firebase';
 import AuthSingleton from '../../services/AuthSingleton'; 
 
-import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings } from '../../Settings'
+import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings, TEST_WEBAPP_COLLECTION} from '../../Settings'
 // import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
@@ -149,18 +149,18 @@ function EmotionDetector({ signOut, currentUser }) {
 
           const resizedDetections = faceapi.resizeResults(detections, displaySize);
   
-          if (canvasRef && canvasRef.current && canvasRef.current.getContext) {
-            canvasRef.current.getContext('2d').clearRect(0, 0, videoWidth, videoHeight);
-            //faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
-            faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
-            faceapi.draw.drawFaceExpressions(canvasRef.current, resizedDetections);
-            // Dibujar solo el box mas grande
-            const biggestDetection = biggestBox(resizedDetections)
-            const box = biggestDetection.detection.box
-            new faceapi.draw.DrawBox(box, {
-                label: predominant
-            }).draw(canvasRef.current) 
-          }
+          // if (canvasRef && canvasRef.current && canvasRef.current.getContext) {
+          //   canvasRef.current.getContext('2d').clearRect(0, 0, videoWidth, videoHeight);
+          //   //faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
+          //   faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
+          //   faceapi.draw.drawFaceExpressions(canvasRef.current, resizedDetections);
+          //   // Dibujar solo el box mas grande
+          //   const biggestDetection = biggestBox(resizedDetections)
+          //   const box = biggestDetection.detection.box
+          //   new faceapi.draw.DrawBox(box, {
+          //       label: predominant
+          //   }).draw(canvasRef.current) 
+          // }
         }, settings.intervalTime);
 
         setIntervalId(interval);
@@ -219,13 +219,13 @@ function EmotionDetector({ signOut, currentUser }) {
     try {
       const date = new Date();
       const data = {
-        id_user: user.uid,
+        id_user: user.id,
         timestamp: Timestamp.fromDate(date),
         interaction_others: peopleNumber >= 2 ? 1 : 0,
         attention_level: attentionLevel
       };
       // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
-      const docRef = await addDoc(collection(db, CONTEXT_WEB_COLLECTION), data);
+      const docRef = await addDoc(collection(db, TEST_WEBAPP_COLLECTION), data);
   
       console.log('Context Document ID:', docRef.id);
     } catch (error) {
