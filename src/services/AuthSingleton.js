@@ -1,6 +1,5 @@
 import { collection, query, where, getDocs } from 'firebase/firestore'; 
 import { db } from '../firebase'; // Import your Firebase authentication and Firestore setup here
-import { SimpleUser } from '../models/SimpleUser'
 
 class AuthSingleton {
   constructor() {

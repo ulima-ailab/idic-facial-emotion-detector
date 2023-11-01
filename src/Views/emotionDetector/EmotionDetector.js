@@ -1,11 +1,10 @@
 import * as faceapi from 'face-api.js';
 import React from 'react';
 import { collection, addDoc, serverTimestamp} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-import { db, auth } from '../../firebase';
+import { db } from '../../firebase';
 import AuthSingleton from '../../services/AuthSingleton'; 
 
-import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings, TEST_WEBAPP_COLLECTION} from '../../Settings'
+import { settings, TEST_WEBAPP_COLLECTION} from '../../Settings'
 // import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
@@ -147,8 +146,6 @@ function EmotionDetector({ signOut, currentUser }) {
           }
           sendContextToFirebase(detections.length, attentionLevel);
 
-          const resizedDetections = faceapi.resizeResults(detections, displaySize);
-  
           // if (canvasRef && canvasRef.current && canvasRef.current.getContext) {
           //   canvasRef.current.getContext('2d').clearRect(0, 0, videoWidth, videoHeight);
           //   //faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
@@ -165,52 +162,6 @@ function EmotionDetector({ signOut, currentUser }) {
 
         setIntervalId(interval);
       });
-    }
-  };
-
-  function getBoxSize(detection) {
-      const box = detection.detection.box
-      var width = box.width
-      var height = box.height
-      return width * height
-  }
-
-  function biggestBox(resizedDetections) {
-      var biggestDetection = resizedDetections[0];
-      var biggestBox = 0;
-      resizedDetections.forEach(detection => {
-          var boxSize = getBoxSize(detection)
-          if( boxSize > biggestBox ) {
-              biggestDetection = detection
-              biggestBox = boxSize
-          }
-      })
-      console.log("Emotions: ",  biggestDetection.expressions)
-            
-      for (const [key, value] of Object.entries(biggestDetection.expressions)) {
-
-        sendEmotionToFirebase(key, value)
-
-      }
-
-      return biggestDetection;
-  }
-  
-  const sendEmotionToFirebase = async (emotion, value) => {
-    try {
-      const data = {
-        emotion: emotion,
-        id_user: user.uid,
-        source: "face",
-        timestamp: serverTimestamp(),
-        value: value
-      };
-      // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
-      const docRef = await addDoc(collection(db, EMOTION_COLLECTION), data);
-  
-      console.log('Emotion Document ID:', docRef.id);
-    } catch (error) {
-      console.error('Error adding document:', error);
     }
   };
 
