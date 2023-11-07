@@ -7,5 +7,5 @@ export const TEST_WEBAPP_COLLECTION = "Test_WebApp";
 
 // Exported object properties
 export const settings = {
-  intervalTime: 5000,
+  intervalTime: 1800000,
 };
