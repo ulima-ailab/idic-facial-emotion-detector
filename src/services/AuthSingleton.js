@@ -1,5 +1,7 @@
 import { collection, query, where, getDocs } from 'firebase/firestore'; 
+import { redirect } from "react-router-dom";
 import { db } from '../firebase'; // Import your Firebase authentication and Firestore setup here
+import SimpleLogin from '../views/SimpleLogin';
 
 class AuthSingleton {
   constructor() {
@@ -42,6 +44,7 @@ class AuthSingleton {
   }
 
   logout() {
+    console.log("Logout");
     this.isAuthenticated = false;
     this.user = null;
   }
