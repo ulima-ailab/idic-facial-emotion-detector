@@ -111,6 +111,10 @@ function EmotionDetector({ signOut, currentUser }) {
         faceapi.matchDimensions(canvasRef.current, displaySize);
 
         jobRecoverFacialData = setInterval(async () => {
+          let attentionLevel = null;
+          let interactionOthers = -1;
+          let emotions = null;
+
           await faceLandmarker.setOptions({ runningMode: runningMode });
 
           const results = faceLandmarker.detectForVideo(video, Date.now());
@@ -118,17 +122,10 @@ function EmotionDetector({ signOut, currentUser }) {
             .withFaceLandmarks()
             .withFaceExpressions();
 
-          console.log("detections.length", detections.length);
-
-          if (detections.length < 0) return
-          if (!detections[0]?.expressions) return
-
           const face = results.faceLandmarks;
           console.log("face.length: ", face.length);
+          console.log("detections.length", detections.length);
           
-          interactionOthers = detections.length >= 2 ? 1 : 0;
-          console.log("--- interaction with people: ", interactionOthers);
-
           if (face.length > 0) {
             const mesh = face[0];
             const eyes = results.faceBlendshapes[0];
@@ -136,24 +133,28 @@ function EmotionDetector({ signOut, currentUser }) {
     
             console.log("ATTENTION SCORE", score);
             attentionLevel = attentionMap(score);
-            console.log("ATTENTION LEVEL", attentionLevel);
           }
           
-          const resizedDetections = faceapi.resizeResults(detections, displaySize);
-          let biggestDetection = resizedDetections[0];
-          let biggestBox = 0;
-          resizedDetections.forEach(detection => {
-            let boxSize = getBoxSize(detection)
-            if( boxSize > biggestBox ) {
-              biggestDetection = detection
-              biggestBox = boxSize
+          if (detections.length > 0) {
+            interactionOthers = detections.length >= 2 ? 1 : 0;
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            let biggestDetection = resizedDetections[0];
+            let biggestBox = 0;
+            resizedDetections.forEach(detection => {
+              let boxSize = getBoxSize(detection)
+              if( boxSize > biggestBox ) {
+                biggestDetection = detection
+                biggestBox = boxSize
+              }
+            })
+            
+            emotions = {};
+            for (const [key, value] of Object.entries(biggestDetection.expressions)) {
+              emotions[key] = value;
             }
-          })
-          
-          emotions = {};
-          for (const [key, value] of Object.entries(biggestDetection.expressions)) {
-            emotions[key] = value;
           }
+          console.log("ATTENTION LEVEL", attentionLevel);
+          console.log("--- interaction with people: ", interactionOthers);
           console.log("Emotions: ", emotions);
         }, settings.recoverDataTime);
 
