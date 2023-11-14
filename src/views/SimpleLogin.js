@@ -38,13 +38,14 @@ function SimpleLogin() {
     <div style={{ textAlign: 'center', padding: '80px' }}>
       <h2>Login</h2>
       <label>
-        Username:
+        Username:&nbsp;
         <input
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
       </label>
+      &nbsp;
       <button onClick={handleLogin} style={{ cursor: 'pointer', backgroundColor: 'green', color: 'white', padding: '4px', fontSize: '14px', border: 'none', borderRadius: '4px' }} >Login</button>
     </div>
   )

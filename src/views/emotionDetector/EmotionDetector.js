@@ -26,6 +26,7 @@ function EmotionDetector({ signOut, currentUser }) {
   let attentionLevel = null;
   let interactionOthers = -1;
   let emotions = null;
+  let contBlank = 0;
 
   let jobRecoverFacialData = null;
   let jobSendDataToDB = null;
@@ -67,15 +68,17 @@ function EmotionDetector({ signOut, currentUser }) {
       })
 
       setFaceLandmarkerLoaded(true);
-      setFaceLandmarker(localFaceLandmarker)
+      setFaceLandmarker(localFaceLandmarker);
     }
 
     loadModels();
     runModel();
   }, []);
 
-  const startVideo = () => {
+  const startVideo = async () => {
     setCaptureVideo(true);
+    await faceLandmarker.setOptions({ runningMode: runningMode });
+
     navigator.mediaDevices
       .getUserMedia({ video: { width: 300 } })
       .then(stream => {
@@ -110,8 +113,10 @@ function EmotionDetector({ signOut, currentUser }) {
 
         faceapi.matchDimensions(canvasRef.current, displaySize);
 
+        console.log("Video has started");
+
         jobRecoverFacialData = setInterval(async () => {
-          await faceLandmarker.setOptions({ runningMode: runningMode });
+          console.log("Collecting data", new Date());
 
           const results = faceLandmarker.detectForVideo(video, Date.now());
           const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
@@ -130,7 +135,7 @@ function EmotionDetector({ signOut, currentUser }) {
             console.log("ATTENTION SCORE", score);
             attentionLevel = attentionMap(score);
           }
-          else {
+          else if (contBlank >= settings.numContinuousBlanks) {
             attentionLevel = null;
           }
           
@@ -152,14 +157,25 @@ function EmotionDetector({ signOut, currentUser }) {
               emotions[key] = value;
             }
           }
-          else {
+          else if (contBlank >= settings.numContinuousBlanks) {
             interactionOthers = -1;
             emotions = null;
           }
+
+          if (face.length <= 0 || detections.length <= 0) {
+            if (contBlank < settings.numContinuousBlanks)
+              contBlank += 1;
+            else
+              contBlank = 0;
+          }
+          else {
+            contBlank = 0;
+          }
+
           console.log("ATTENTION LEVEL", attentionLevel);
           console.log("--- interaction with people: ", interactionOthers);
           console.log("Emotions: ", emotions);
-        }, settings.recoverDataTime);
+        }, settings.collectDataTime);
 
         jobSendDataToDB = setInterval(async () => {
           console.log("Sending to Firestore");
@@ -272,6 +288,9 @@ function EmotionDetector({ signOut, currentUser }) {
       clearInterval(jobRecoverFacialData);
     if (jobSendDataToDB)
       clearInterval(jobSendDataToDB);
+
+    jobRecoverFacialData = null;
+    jobSendDataToDB = null;
     
     videoRef.current.pause();
     videoRef.current.srcObject = null;
