@@ -111,10 +111,6 @@ function EmotionDetector({ signOut, currentUser }) {
         faceapi.matchDimensions(canvasRef.current, displaySize);
 
         jobRecoverFacialData = setInterval(async () => {
-          let attentionLevel = null;
-          let interactionOthers = -1;
-          let emotions = null;
-
           await faceLandmarker.setOptions({ runningMode: runningMode });
 
           const results = faceLandmarker.detectForVideo(video, Date.now());
@@ -134,6 +130,9 @@ function EmotionDetector({ signOut, currentUser }) {
             console.log("ATTENTION SCORE", score);
             attentionLevel = attentionMap(score);
           }
+          else {
+            attentionLevel = null;
+          }
           
           if (detections.length > 0) {
             interactionOthers = detections.length >= 2 ? 1 : 0;
@@ -152,6 +151,10 @@ function EmotionDetector({ signOut, currentUser }) {
             for (const [key, value] of Object.entries(biggestDetection.expressions)) {
               emotions[key] = value;
             }
+          }
+          else {
+            interactionOthers = -1;
+            emotions = null;
           }
           console.log("ATTENTION LEVEL", attentionLevel);
           console.log("--- interaction with people: ", interactionOthers);
