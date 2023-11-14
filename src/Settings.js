@@ -9,5 +9,5 @@ export const TEST_WEBAPP_COLLECTION = "Test_WebApp";
 export const settings = {
   sendDataTime: 2400000, // num of milliseconds to send data to DB
   collectDataTime: 60000, // num of milliseconds to collect data in local
-  numContinuousBlanks: 2   // num of times allowed old data when there is not a person detected
+  numContinuousBlanks: 1   // num of times allowed old data when there is not a person detected
 };

@@ -75,9 +75,8 @@ function EmotionDetector({ signOut, currentUser }) {
     runModel();
   }, []);
 
-  const startVideo = async () => {
+  const startVideo = () => {
     setCaptureVideo(true);
-    await faceLandmarker.setOptions({ runningMode: runningMode });
 
     navigator.mediaDevices
       .getUserMedia({ video: { width: 300 } })
@@ -284,9 +283,9 @@ function EmotionDetector({ signOut, currentUser }) {
   }
 
   const closeWebcam = () => {
-    if (jobRecoverFacialData)
+    if (jobRecoverFacialData != null)
       clearInterval(jobRecoverFacialData);
-    if (jobSendDataToDB)
+    if (jobSendDataToDB != null)
       clearInterval(jobSendDataToDB);
 
     jobRecoverFacialData = null;

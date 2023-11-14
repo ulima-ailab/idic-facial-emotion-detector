@@ -32,6 +32,7 @@ function SimpleLogin() {
 
   const handleSignOut = () => {
     AuthSingleton.logout()
+    window.location.reload(false);
   };
 
   const LoginComponent = (
