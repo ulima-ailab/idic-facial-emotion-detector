@@ -1,5 +1,5 @@
 import * as faceapi from 'face-api.js';
-import React from 'react';
+import React, {useRef} from 'react';
 import { collection, addDoc, serverTimestamp} from "firebase/firestore";
 import { db } from '../../firebase';
 import AuthSingleton from '../../services/AuthSingleton'; 
@@ -16,20 +16,22 @@ function EmotionDetector({ signOut, currentUser }) {
   const [faceLandmarker, setFaceLandmarker] = React.useState(null); // Initialize as null
   
 
-  const videoRef = React.useRef();
+  const videoRef = useRef();
   const videoHeight = 480;
   const videoWidth = 640;
-  const canvasRef = React.useRef();
+  const canvasRef = useRef();
 
   let runningMode = "VIDEO";
-  let score = -1;
-  let attentionLevel = null;
-  let interactionOthers = -1;
-  let emotions = null;
-  let contBlank = 0;
+  let attentionLevel = useRef(null);
+  let interactionOthers = useRef(null);
+  let emotions = useRef(null);
+  let arrAttentionScore = useRef([]);
+  let arrEmotions = useRef([])
+  let arrInteractionOthers = useRef([])
 
-  let jobRecoverFacialData = null;
-  let jobSendDataToDB = null;
+  let jobRecoverFacialData = useRef(null);
+  let jobSendDataToDB = useRef(null);
+  let timer = useRef(0);
 
   
   React.useEffect(() => {
@@ -114,8 +116,9 @@ function EmotionDetector({ signOut, currentUser }) {
 
         console.log("Video has started");
 
-        jobRecoverFacialData = setInterval(async () => {
+        jobRecoverFacialData.current = setInterval(async () => {
           console.log("Collecting data", new Date());
+          timer.current++;
 
           const results = faceLandmarker.detectForVideo(video, Date.now());
           const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
@@ -124,22 +127,18 @@ function EmotionDetector({ signOut, currentUser }) {
 
           const face = results.faceLandmarks;
           console.log("face.length: ", face.length);
-          console.log("detections.length", detections.length);
+          console.log("detections.length: ", detections.length);
           
           if (face.length > 0) {
             const mesh = face[0];
             const eyes = results.faceBlendshapes[0];
-            score = detectAttention(mesh, eyes);
-    
-            console.log("ATTENTION SCORE", score);
-            attentionLevel = attentionMap(score);
-          }
-          else if (contBlank >= settings.numContinuousBlanks) {
-            attentionLevel = null;
+            let score = detectAttention(mesh, eyes);
+            console.log("Attention score: ", score);
+            arrAttentionScore.current.push(score);
           }
           
           if (detections.length > 0) {
-            interactionOthers = detections.length >= 2 ? 1 : 0;
+            let localInteractionOthers = detections.length >= 2 ? 1 : 0;
             const resizedDetections = faceapi.resizeResults(detections, displaySize);
             let biggestDetection = resizedDetections[0];
             let biggestBox = 0;
@@ -151,40 +150,35 @@ function EmotionDetector({ signOut, currentUser }) {
               }
             })
             
-            emotions = {};
+            let localEmotions = {};
             for (const [key, value] of Object.entries(biggestDetection.expressions)) {
-              emotions[key] = value;
+              localEmotions[key] = value;
             }
-          }
-          else if (contBlank >= settings.numContinuousBlanks) {
-            interactionOthers = -1;
-            emotions = null;
+            arrInteractionOthers.current.push(localInteractionOthers);
+            arrEmotions.current.push(localEmotions);
           }
 
-          if (face.length <= 0 || detections.length <= 0) {
-            if (contBlank < settings.numContinuousBlanks)
-              contBlank += 1;
-            else
-              contBlank = 0;
-          }
-          else {
-            contBlank = 0;
-          }
+          if(timer.current > 0 && timer.current % settings.timeForLocalUpdate === 0) {
+            console.log("Update local variables", timer.current);
+            attentionLevel.current = computeAttentionLevelFinal();
+            interactionOthers.current = computeInteractionOthersFinal();
+            emotions.current = computeEmotionsFinal();
 
-          console.log("ATTENTION LEVEL", attentionLevel);
-          console.log("--- interaction with people: ", interactionOthers);
-          console.log("Emotions: ", emotions);
+            console.log("ATTENTION LEVEL: ", attentionLevel.current);
+            console.log("EMOTIONS: ", emotions.current);
+            console.log("--- interaction with people: ", interactionOthers.current);
+          }
         }, settings.collectDataTime);
 
-        jobSendDataToDB = setInterval(async () => {
+        jobSendDataToDB.current = setInterval(async () => {
           console.log("Sending to Firestore");
           try {
             const data = {
               id_user: user.id,
               timestamp: serverTimestamp(),
-              emotions: emotions,
-              interaction_others: interactionOthers,
-              attention_level: attentionLevel
+              emotions: emotions.current,
+              interaction_others: interactionOthers.current,
+              attention_level: attentionLevel.current
             };
             const docRef = await addDoc(collection(db, TEST_WEBAPP_COLLECTION), data);
             console.log('Context Document ID:', docRef.id);
@@ -195,6 +189,45 @@ function EmotionDetector({ signOut, currentUser }) {
       });
     }
   };
+
+  function computeAttentionLevelFinal() {
+    if (arrAttentionScore.current.length < 1)
+      return null;
+    
+    let sum = 0;
+    for (let score of arrAttentionScore.current)
+      sum += score;
+    arrAttentionScore.current = [];
+    return attentionMap(sum / arrAttentionScore.length);
+  }
+
+  function computeEmotionsFinal() {
+    if (arrEmotions.current.length < 1)
+      return null;
+
+    let result = {}
+    for (let obj of arrEmotions.current) {
+      for (let emotion in obj) {
+        if (!(emotion in result))
+          result[emotion] = 0;
+        result[emotion] += obj[emotion] / arrEmotions.current.length;
+      }
+    }
+    arrEmotions.current = [];
+    return result;
+  }
+
+  function computeInteractionOthersFinal() {
+    if (arrInteractionOthers.current.length < 1)
+      return null;
+
+    let aux = [0, 0];
+    for (let val of arrInteractionOthers.current)
+      aux[val]++;
+    let result = aux[0] > aux[1] ? 0 : 1;
+    arrInteractionOthers.current = [];
+    return result;
+  }
 
   function getBoxSize(detection) {
     const box = detection.detection.box
@@ -283,13 +316,13 @@ function EmotionDetector({ signOut, currentUser }) {
   }
 
   const closeWebcam = () => {
-    if (jobRecoverFacialData != null)
-      clearInterval(jobRecoverFacialData);
-    if (jobSendDataToDB != null)
-      clearInterval(jobSendDataToDB);
+    if (jobRecoverFacialData.current != null)
+      clearInterval(jobRecoverFacialData.current);
+    if (jobSendDataToDB.current != null)
+      clearInterval(jobSendDataToDB.current);
 
-    jobRecoverFacialData = null;
-    jobSendDataToDB = null;
+    jobRecoverFacialData.current = null;
+    jobSendDataToDB.current = null;
     
     videoRef.current.pause();
     videoRef.current.srcObject = null;
