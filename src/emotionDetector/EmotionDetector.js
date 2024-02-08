@@ -4,20 +4,16 @@ import { collection, addDoc, serverTimestamp} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from '../firebase';
 import { CONTEXT_WEB_COLLECTION, EMOTION_COLLECTION, settings } from '../Settings'
-// import vision from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest";
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
-// const { FaceLandmarker, FilesetResolver} = vision
 
 
 function EmotionDetector({ signOut, currentUser }) {
   const [modelsLoaded, setModelsLoaded] = React.useState(false);
   const [faceLandmarkerLoaded, setFaceLandmarkerLoaded] = React.useState(false);
   const [captureVideo, setCaptureVideo] = React.useState(false);
-  const [intervalId, setIntervalId] = React.useState(null);
   const [user, setUser] = React.useState(null);
   const [faceLandmarker, setFaceLandmarker] = React.useState(null); // Initialize as null
-  const [attentionLevel, setAttentionLevel] = React.useState(2); // Initialize as null
-
+  
   const videoRef = React.useRef();
   const videoHeight = 480;
   const videoWidth = 640;
@@ -25,7 +21,17 @@ function EmotionDetector({ signOut, currentUser }) {
 
   // var faceLandmarker
   let runningMode = "VIDEO";
-  let score = -1;
+
+  let attentionLevel = React.useRef(-1);
+  let interactionOthers = React.useRef(null);
+  let emotions = React.useRef(null);
+  let arrAttentionScore = React.useRef([]);
+  let arrEmotions = React.useRef([])
+  let arrInteractionOthers = React.useRef([])
+
+  let jobRecoverFacialData = React.useRef(null);
+  let jobSendDataToDB = React.useRef(null);
+  let timer = React.useRef(0);
   
   React.useEffect(() => {
     onAuthStateChanged(auth, (user) => {
@@ -59,7 +65,7 @@ function EmotionDetector({ signOut, currentUser }) {
       ]).then(setModelsLoaded(true));
     }
     
-    const runModel = async () =>{
+    const runModel = async () => {
       const filesetResolver = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
       )
@@ -116,67 +122,112 @@ function EmotionDetector({ signOut, currentUser }) {
         };
 
         faceapi.matchDimensions(canvasRef.current, displaySize);
-  
-        const interval = setInterval(async () => {
-        
-          await faceLandmarker.setOptions({ runningMode: runningMode });
-        let nowInMs = Date.now();
 
-        const results = faceLandmarker.detectForVideo(video, nowInMs);
-        const face = results.faceLandmarks;
-        console.log("face.length SCORE", face.length);
+        console.log("Video has started");
+  
+        jobRecoverFacialData.current = setInterval(async () => {
+          console.log("Collecting data", new Date());
+          timer.current++;
+          
+          const results = faceLandmarker.detectForVideo(video, Date.now());
           
           const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
             .withFaceLandmarks()
             .withFaceExpressions();
 
-          if (detections.length < 0) return
-          if (!detections[0]?.expressions) return
-
-            // console.log('--- detections[0].expressions =', detections[0].expressions)
-          const predominant =  Object.entries(detections[0].expressions).reduce((acc, [key, value]) => {
-            if (value > acc.value) {
-              return { key, value };
-            }
-            return acc;
-          }, { key: null, value: -Infinity }).key
-
-          console.log('--- predominant =', predominant)
-          console.log("--- number of people: ", detections.length);
-          var attention_level = attentionLevel
+          const face = results.faceLandmarks;
+          console.log("face.length: ", face.length);
+          console.log("detections.length: ", detections.length);
+          
           if (face.length > 0) {
             const mesh = face[0];
             const eyes = results.faceBlendshapes[0];
-            score = detectAttention(mesh, eyes);
-    
-            console.log("ATTENTION SCORE", score);
-            attention_level = attentionMap(score);
-            console.log("ATTENTION LEVEL", attention_level);
-            setAttentionLevel(attention_level)
+            let score = detectAttention(mesh, eyes);
+
+            console.log("Attention score: ", score);
+            arrAttentionScore.current.push(score);
+          }
+          
+          if (detections.length > 0) {
+            let localInteractionOthers = detections.length >= 2 ? 1 : 0;
+            const resizedDetections = faceapi.resizeResults(detections, displaySize);
+            let biggestDetection = resizedDetections[0];
+            let biggestBox = 0;
+            resizedDetections.forEach(detection => {
+              let boxSize = getBoxSize(detection)
+              if( boxSize > biggestBox ) {
+                biggestDetection = detection
+                biggestBox = boxSize
+              }
+            })
             
+            let localEmotions = {};
+            for (const [key, value] of Object.entries(biggestDetection.expressions)) {
+              localEmotions[key] = value;
+            }
+            arrInteractionOthers.current.push(localInteractionOthers);
+            arrEmotions.current.push(localEmotions);
           }
-          sendContextToFirebase(detections.length, attentionLevel);
 
-          const resizedDetections = faceapi.resizeResults(detections, displaySize);
-  
-          if (canvasRef && canvasRef.current && canvasRef.current.getContext) {
-            canvasRef.current.getContext('2d').clearRect(0, 0, videoWidth, videoHeight);
-            //faceapi.draw.drawDetections(canvasRef.current, resizedDetections);
-            faceapi.draw.drawFaceLandmarks(canvasRef.current, resizedDetections);
-            faceapi.draw.drawFaceExpressions(canvasRef.current, resizedDetections);
-            // Dibujar solo el box mas grande
-            const biggestDetection = biggestBox(resizedDetections)
-            const box = biggestDetection.detection.box
-            new faceapi.draw.DrawBox(box, {
-                label: predominant
-            }).draw(canvasRef.current) 
+          if(timer.current > 0 && timer.current % settings.timeToUpdateLocalData === 0) {
+            console.log("Update local variables", timer.current);
+            attentionLevel.current = computeAttentionLevelFinal();
+            interactionOthers.current = computeInteractionOthersFinal();
+            emotions.current = computeEmotionsFinal();
+
+            console.log("ATTENTION LEVEL: ", attentionLevel.current);
+            console.log("EMOTIONS: ", emotions.current);
+            console.log("--- interaction with people: ", interactionOthers.current);
           }
-        }, settings.intervalTime);
+        }, settings.localTimeToCollectData);
 
-        setIntervalId(interval);
+        jobSendDataToDB.current = setInterval(async () => {
+          console.log("Sending to Firestore");
+          sendContextToFirebase();
+          sendEmotionToFirebase();
+        }, settings.timeToSendData);
       });
     }
   };
+
+  function computeAttentionLevelFinal() {
+    if (arrAttentionScore.current.length < 1)
+      return -1;
+
+    let sum = 0;
+    for (let score of arrAttentionScore.current)
+      sum += score;
+    arrAttentionScore.current = [];
+    return attentionMap(sum / arrAttentionScore.length);
+  }
+
+  function computeEmotionsFinal() {
+    if (arrEmotions.current.length < 1)
+      return {'fearful': 0, 'disgusted': 0, 'angry': 0, 'sad': 0, 'surprised': 0, 'neutral': 0, 'happy': 0};
+      
+    let result = {}
+    for (let obj of arrEmotions.current) {
+      for (let emotion in obj) {
+        if (!(emotion in result))
+          result[emotion] = 0;
+        result[emotion] += obj[emotion] / arrEmotions.current.length;
+      }
+    }
+    arrEmotions.current = [];
+    return result;
+  }
+
+  function computeInteractionOthersFinal() {
+    if (arrInteractionOthers.current.length < 1)
+      return -1;
+
+    let aux = [0, 0];
+    for (let val of arrInteractionOthers.current)
+      aux[val]++;
+    let result = aux[0] > aux[1] ? 0 : 1;
+    arrInteractionOthers.current = [];
+    return result;
+  }
 
   function getBoxSize(detection) {
       const box = detection.detection.box
@@ -184,57 +235,36 @@ function EmotionDetector({ signOut, currentUser }) {
       var height = box.height
       return width * height
   }
-
-  function biggestBox(resizedDetections) {
-      var biggestDetection = resizedDetections[0];
-      var biggestBox = 0;
-      resizedDetections.forEach(detection => {
-          var boxSize = getBoxSize(detection)
-          if( boxSize > biggestBox ) {
-              biggestDetection = detection
-              biggestBox = boxSize
-          }
-      })
-      console.log("Emotions: ",  biggestDetection.expressions)
-            
-      for (const [key, value] of Object.entries(biggestDetection.expressions)) {
-
-        sendEmotionToFirebase(key, value)
-
-      }
-
-      return biggestDetection;
-  }
   
-  const sendEmotionToFirebase = async (emotion, value) => {
+  const sendEmotionToFirebase = async() => {
     try {
-      const data = {
-        emotion: emotion,
-        id_user: user.uid,
-        source: "face",
-        timestamp: serverTimestamp(),
-        value: value
-      };
-      // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
-      const docRef = await addDoc(collection(db, EMOTION_COLLECTION), data);
-  
-      console.log('Emotion Document ID:', docRef.id);
+      for (let emotion in emotions.current) {
+        const data = {
+          emotion: emotion,
+          id_user: user.uid,
+          source: "face",
+          timestamp: serverTimestamp(),
+          value: emotions.current[emotion]
+        };
+        // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
+        const docRef = await addDoc(collection(db, EMOTION_COLLECTION), data);
+    
+        console.log('Emotion Document ID:', docRef.id);
+      }
     } catch (error) {
       console.error('Error adding document:', error);
     }
   };
 
-  const sendContextToFirebase = async (peopleNumber, attentionLevel) => {
+  const sendContextToFirebase = async () => {
     try {
       const data = {
         id_user: user.uid,
         timestamp: serverTimestamp(),
-        interaction_others: peopleNumber >= 2 ? 1 : 0,
-        attention_level: attentionLevel
+        interaction_others: interactionOthers.current,
+        attention_level: attentionLevel.current
       };
-      // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
       const docRef = await addDoc(collection(db, CONTEXT_WEB_COLLECTION), data);
-  
       console.log('Context Document ID:', docRef.id);
     } catch (error) {
       console.error('Error adding document:', error);
@@ -321,10 +351,13 @@ function EmotionDetector({ signOut, currentUser }) {
   }
 
   const closeWebcam = () => {
-    if (intervalId) {
-      clearInterval(intervalId); // Clear the interval
-      setIntervalId(null);
-    }
+    if (jobRecoverFacialData.current != null)
+      clearInterval(jobRecoverFacialData.current);
+    if (jobSendDataToDB.current != null)
+      clearInterval(jobSendDataToDB.current);
+
+    jobRecoverFacialData.current = null;
+    jobSendDataToDB.current = null;
     videoRef.current.pause();
     videoRef.current.srcObject = null;
     setCaptureVideo(false);
@@ -342,7 +375,7 @@ function EmotionDetector({ signOut, currentUser }) {
         user ?
         <div>
           <div style={{ textAlign: 'center', padding: '10px' }}>
-                <h2>Welcome {user.displayName }</h2>
+                <h2>Welcome { user.name }</h2>
                 </div>
 
           <div style={{ textAlign: 'center', padding: '10px' }}>
@@ -384,6 +417,5 @@ function EmotionDetector({ signOut, currentUser }) {
     </div>
   );
 }
-
 
 export default EmotionDetector;
