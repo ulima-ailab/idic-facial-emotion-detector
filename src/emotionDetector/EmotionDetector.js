@@ -23,7 +23,7 @@ function EmotionDetector({ signOut, currentUser }) {
   let runningMode = "VIDEO";
 
   let attentionLevel = React.useRef(-1);
-  let interactionOthers = React.useRef(null);
+  let interactionOthers = React.useRef(-1);
   let emotions = React.useRef(null);
   let arrAttentionScore = React.useRef([]);
   let arrEmotions = React.useRef([])
@@ -31,7 +31,9 @@ function EmotionDetector({ signOut, currentUser }) {
 
   let jobRecoverFacialData = React.useRef(null);
   let jobSendDataToDB = React.useRef(null);
+  let jobWaitSending = React.useRef(null);
   let timer = React.useRef(0);
+  let timerForSending = React.useRef(-1);
   
   React.useEffect(() => {
     onAuthStateChanged(auth, (user) => {
@@ -124,7 +126,7 @@ function EmotionDetector({ signOut, currentUser }) {
         faceapi.matchDimensions(canvasRef.current, displaySize);
 
         console.log("Video has started");
-  
+
         jobRecoverFacialData.current = setInterval(async () => {
           console.log("Collecting data", new Date());
           timer.current++;
@@ -171,6 +173,7 @@ function EmotionDetector({ signOut, currentUser }) {
 
           if(timer.current > 0 && timer.current % settings.timeToUpdateLocalData === 0) {
             console.log("Update local variables", timer.current);
+            timer.current = 0;
             attentionLevel.current = computeAttentionLevelFinal();
             interactionOthers.current = computeInteractionOthersFinal();
             emotions.current = computeEmotionsFinal();
@@ -181,11 +184,30 @@ function EmotionDetector({ signOut, currentUser }) {
           }
         }, settings.localTimeToCollectData);
 
-        jobSendDataToDB.current = setInterval(async () => {
-          console.log("Sending to Firestore");
-          sendContextToFirebase();
-          sendEmotionToFirebase();
-        }, settings.timeToSendData);
+        jobWaitSending.current = setInterval(async () => {
+          /*if (timerForSending.current === -1) {
+            let now = new Date();
+            timerForSending.current = now.getSeconds();
+          }
+          else {
+            timerForSending.current++;
+          }         */
+          
+          
+          let now = new Date();
+          let currSecs = now.getSeconds();
+          console.log("CURRENT TIME ", currSecs)
+
+          if (currSecs >= 57 && currSecs <= 59) {
+            jobSendDataToDB.current = setInterval(async () => {
+              sendContextToFirebase();
+              sendEmotionToFirebase();
+              console.log("Sent to Firestore");
+            }, settings.timeToSendData);
+
+            clearInterval(jobWaitSending.current);
+          }
+        }, settings.timeToAskForSending);
       });
     }
   };
