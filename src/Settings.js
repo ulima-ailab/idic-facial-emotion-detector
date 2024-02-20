@@ -6,6 +6,6 @@ export const CONTEXT_WEB_COLLECTION = "Context_web";
 export const settings = {
   timeToSendData: 60000, // num of milliseconds to send data to DB
   localTimeToCollectData: 1000, // num of milliseconds to collect data in local
-  timeToUpdateLocalData: 30,  // num of seconds to update data in local
+  timeToUpdateLocalData: 30000,  // num of milliseconds to update data in local
   timeToAskForSending: 1000,
 };

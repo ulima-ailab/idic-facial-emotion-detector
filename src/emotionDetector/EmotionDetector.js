@@ -12,14 +12,13 @@ function EmotionDetector({ signOut, currentUser }) {
   const [faceLandmarkerLoaded, setFaceLandmarkerLoaded] = React.useState(false);
   const [captureVideo, setCaptureVideo] = React.useState(false);
   const [user, setUser] = React.useState(null);
-  const [faceLandmarker, setFaceLandmarker] = React.useState(null); // Initialize as null
+  const [faceLandmarker, setFaceLandmarker] = React.useState(null);
   
   const videoRef = React.useRef();
   const videoHeight = 480;
   const videoWidth = 640;
   const canvasRef = React.useRef();
 
-  // var faceLandmarker
   let runningMode = "VIDEO";
 
   let attentionLevel = React.useRef(-1);
@@ -32,22 +31,18 @@ function EmotionDetector({ signOut, currentUser }) {
   let jobRecoverFacialData = React.useRef(null);
   let jobSendDataToDB = React.useRef(null);
   let jobWaitSending = React.useRef(null);
-  let timer = React.useRef(0);
-  let timerForSending = React.useRef(-1);
-  
+  let jobUpdateLocalData = React.useRef(null);
+    
   React.useEffect(() => {
     onAuthStateChanged(auth, (user) => {
       if (user) {
         // User is signed in, see docs for a list of available properties
         // https://firebase.google.com/docs/reference/js/firebase.User
         const uid = user.uid;
-        // ...
-        console.log("uid", uid)
+        console.log("[LOGIN] uid", uid)
         setUser(user)
       } else {
-        // User is signed out
-        // ...
-        console.log("user is logged out")
+        console.log("[LOGIN] user is logged out")
         setUser(null)
       }
     });
@@ -108,7 +103,7 @@ function EmotionDetector({ signOut, currentUser }) {
         }
       })
       .catch(err => {
-        console.error("error:", err);
+        console.error("[APP] error:", err);
       });
   }
 
@@ -125,84 +120,34 @@ function EmotionDetector({ signOut, currentUser }) {
 
         faceapi.matchDimensions(canvasRef.current, displaySize);
 
-        console.log("Video has started");
+        console.log("[APP] Video has started");
 
-        jobRecoverFacialData.current = setInterval(async () => {
-          console.log("Collecting data", new Date());
-          timer.current++;
-          
-          const results = faceLandmarker.detectForVideo(video, Date.now());
-          
-          const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceExpressions();
-
-          const face = results.faceLandmarks;
-          console.log("face.length: ", face.length);
-          console.log("detections.length: ", detections.length);
-          
-          if (face.length > 0) {
-            const mesh = face[0];
-            const eyes = results.faceBlendshapes[0];
-            let score = detectAttention(mesh, eyes);
-
-            console.log("Attention score: ", score);
-            arrAttentionScore.current.push(score);
-          }
-          
-          if (detections.length > 0) {
-            let localInteractionOthers = detections.length >= 2 ? 1 : 0;
-            const resizedDetections = faceapi.resizeResults(detections, displaySize);
-            let biggestDetection = resizedDetections[0];
-            let biggestBox = 0;
-            resizedDetections.forEach(detection => {
-              let boxSize = getBoxSize(detection)
-              if( boxSize > biggestBox ) {
-                biggestDetection = detection
-                biggestBox = boxSize
-              }
-            })
-            
-            let localEmotions = {};
-            for (const [key, value] of Object.entries(biggestDetection.expressions)) {
-              localEmotions[key] = value;
-            }
-            arrInteractionOthers.current.push(localInteractionOthers);
-            arrEmotions.current.push(localEmotions);
-          }
-
-          if(timer.current > 0 && timer.current % settings.timeToUpdateLocalData === 0) {
-            console.log("Update local variables", timer.current);
-            timer.current = 0;
-            attentionLevel.current = computeAttentionLevelFinal();
-            interactionOthers.current = computeInteractionOthersFinal();
-            emotions.current = computeEmotionsFinal();
-
-            console.log("ATTENTION LEVEL: ", attentionLevel.current);
-            console.log("EMOTIONS: ", emotions.current);
-            console.log("--- interaction with people: ", interactionOthers.current);
-          }
+        jobRecoverFacialData.current = setInterval( async () => {
+          processVideo_toAttention(video);
+          processVideo_toEmotions(video, displaySize);
         }, settings.localTimeToCollectData);
 
-        jobWaitSending.current = setInterval(async () => {
-          /*if (timerForSending.current === -1) {
-            let now = new Date();
-            timerForSending.current = now.getSeconds();
-          }
-          else {
-            timerForSending.current++;
-          }         */
-          
-          
+        jobUpdateLocalData.current = setInterval( async () => {
+          console.log("[APP] Update local variables", new Date());
+          attentionLevel.current = computeAttentionLevelFinal();
+          interactionOthers.current = computeInteractionOthersFinal();
+          emotions.current = computeEmotionsFinal();
+
+          console.log("[DATA] ATTENTION LEVEL: ", attentionLevel.current);
+          console.log("[DATA] EMOTIONS: ", emotions.current);
+          console.log("[DATA] Interaction with people: ", interactionOthers.current);
+        }, settings.timeToUpdateLocalData);
+
+        jobWaitSending.current = setInterval( () => {
           let now = new Date();
           let currSecs = now.getSeconds();
-          console.log("CURRENT TIME ", currSecs)
+          console.log("[APP] CURRENT TIME ", currSecs)
 
           if (currSecs >= 57 && currSecs <= 59) {
             jobSendDataToDB.current = setInterval(async () => {
               sendContextToFirebase();
               sendEmotionToFirebase();
-              console.log("Sent to Firestore");
+              console.log("[DB] Sent to Firestore");
             }, settings.timeToSendData);
 
             clearInterval(jobWaitSending.current);
@@ -211,6 +156,50 @@ function EmotionDetector({ signOut, currentUser }) {
       });
     }
   };
+
+  function processVideo_toAttention(video) {
+    const results = faceLandmarker.detectForVideo(video, Date.now());
+    const face = results.faceLandmarks;
+    console.log("[DATA] face.length: ", face.length);
+    
+    if (face.length > 0) {
+      const mesh = face[0];
+      const eyes = results.faceBlendshapes[0];
+      let score = detectAttention(mesh, eyes);
+
+      console.log("[DATA] Attention score: ", score);
+      arrAttentionScore.current.push(score);
+    }
+  }
+
+  async function processVideo_toEmotions(video, displaySize) {
+    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceExpressions();
+
+    console.log("[DATA] detections.length: ", detections.length);
+    
+    if (detections.length > 0) {
+      let localInteractionOthers = detections.length >= 2 ? 1 : 0;
+      const resizedDetections = faceapi.resizeResults(detections, displaySize);
+      let biggestDetection = resizedDetections[0];
+      let biggestBox = 0;
+      resizedDetections.forEach(detection => {
+        let boxSize = getBoxSize(detection)
+        if( boxSize > biggestBox ) {
+          biggestDetection = detection
+          biggestBox = boxSize
+        }
+      })
+      
+      let localEmotions = {};
+      for (const [key, value] of Object.entries(biggestDetection.expressions)) {
+        localEmotions[key] = value;
+      }
+      arrInteractionOthers.current.push(localInteractionOthers);
+      arrEmotions.current.push(localEmotions);
+    }
+  }
 
   function computeAttentionLevelFinal() {
     if (arrAttentionScore.current.length < 1)
@@ -261,35 +250,29 @@ function EmotionDetector({ signOut, currentUser }) {
   const sendEmotionToFirebase = async() => {
     try {
       for (let emotion in emotions.current) {
-        const data = {
+        const docRef = addDoc(collection(db, EMOTION_COLLECTION), {
           emotion: emotion,
           id_user: user.uid,
           source: "face",
           timestamp: serverTimestamp(),
           value: emotions.current[emotion]
-        };
-        // TODO: change "FaceDetectionTest" to "Emotions" after debug or test
-        const docRef = await addDoc(collection(db, EMOTION_COLLECTION), data);
-    
-        console.log('Emotion Document ID:', docRef.id);
+        });
       }
     } catch (error) {
-      console.error('Error adding document:', error);
+      console.error('[DB] Error adding Emotion Document: ', error);
     }
   };
 
-  const sendContextToFirebase = async () => {
+  const sendContextToFirebase = () => {
     try {
-      const data = {
+      const docRef = addDoc(collection(db, CONTEXT_WEB_COLLECTION), {
         id_user: user.uid,
         timestamp: serverTimestamp(),
         interaction_others: interactionOthers.current,
         attention_level: attentionLevel.current
-      };
-      const docRef = await addDoc(collection(db, CONTEXT_WEB_COLLECTION), data);
-      console.log('Context Document ID:', docRef.id);
+      });
     } catch (error) {
-      console.error('Error adding document:', error);
+      console.error('[DB] Error adding Context Document: ', error);
     }
   };
 
@@ -375,11 +358,17 @@ function EmotionDetector({ signOut, currentUser }) {
   const closeWebcam = () => {
     if (jobRecoverFacialData.current != null)
       clearInterval(jobRecoverFacialData.current);
+    if (jobUpdateLocalData.current != null)
+      clearInterval(jobUpdateLocalData.current);
     if (jobSendDataToDB.current != null)
       clearInterval(jobSendDataToDB.current);
+    if (jobWaitSending.current != null)
+      clearInterval(jobWaitSending.current);
 
     jobRecoverFacialData.current = null;
+    jobUpdateLocalData.current = null;
     jobSendDataToDB.current = null;
+    jobWaitSending.current = null;
     videoRef.current.pause();
     videoRef.current.srcObject = null;
     setCaptureVideo(false);
