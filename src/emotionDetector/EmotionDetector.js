@@ -143,7 +143,7 @@ function EmotionDetector({ signOut, currentUser }) {
           let currSecs = now.getSeconds();
           console.log("[APP] CURRENT TIME ", currSecs)
 
-          if (currSecs >= 57 && currSecs <= 59) {
+          if (currSecs >= 58 && currSecs <= 59) {
             jobSendDataToDB.current = setInterval(async () => {
               sendContextToFirebase();
               sendEmotionToFirebase();
