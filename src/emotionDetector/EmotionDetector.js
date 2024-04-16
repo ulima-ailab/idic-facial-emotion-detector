@@ -369,8 +369,11 @@ function EmotionDetector({ signOut, currentUser }) {
     jobUpdateLocalData.current = null;
     jobSendDataToDB.current = null;
     jobWaitSending.current = null;
-    videoRef.current.pause();
-    videoRef.current.srcObject = null;
+
+    if (videoRef.current != null) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
     setCaptureVideo(false);
   }
 
