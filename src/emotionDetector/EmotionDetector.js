@@ -208,8 +208,10 @@ function EmotionDetector({ signOut, currentUser }) {
     let sum = 0;
     for (let score of arrAttentionScore.current)
       sum += score;
+
+    let lvl = attentionMap(sum / arrAttentionScore.current.length);
     arrAttentionScore.current = [];
-    return attentionMap(sum / arrAttentionScore.length);
+    return lvl;
   }
 
   function computeEmotionsFinal() {
