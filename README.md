@@ -1,6 +1,6 @@
 
 
-# idic-facial-emotion-detector
+# Facial Emotion Detector
 
 ## Table of Contents
 
